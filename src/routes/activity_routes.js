@@ -11,5 +11,6 @@ router.put('/:id', protect, authorize('ORGANIZER', 'ADMIN'), activityController.
 router.delete('/:id', protect, authorize('ADMIN'), activityController.remove);
 router.post('/:id/join', protect, activityController.join);
 router.post('/:id/verify/:userId', protect, authorize('ORGANIZER', 'ADMIN'), activityController.verifyParticipation);
+router.get('/:id/participations', protect, authorize('ORGANIZER', 'ADMIN'), activityController.getParticipations);
 
 module.exports = router;

@@ -59,6 +59,18 @@ const getById = async (id) => {
   return result.rows[0];
 };
 
+const getParticipations = async (activityId) => {
+  const result = await db.query(
+    `SELECT p.*, u.name AS user_name, u.email AS user_email
+     FROM participations p
+     JOIN users u ON p.user_id = u.id
+     WHERE p.activity_id = $1
+     ORDER BY p.created_at DESC`,
+    [activityId]
+  );
+  return result.rows;
+};
+
 const create = async ({ title, description, date, location, maxParticipants, organizerId }) => {
   const result = await db.query(
     `INSERT INTO activities (title, description, date, location, max_participants, organizer_id, status)

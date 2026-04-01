@@ -72,4 +72,13 @@ const verifyParticipation = async (req, res, next) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, join, verifyParticipation };
+const getParticipations = async (req, res, next) => {
+  try {
+    const result = await activityService.getParticipations(req.params.id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, join, verifyParticipation, getParticipations };
