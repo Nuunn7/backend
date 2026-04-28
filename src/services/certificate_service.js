@@ -1,98 +1,176 @@
 const crypto = require('crypto');
-const db = require('../config/db');
+const pool = require('../config/db');
+const blockchainService = require('./blockchain_service');
 const { AppError } = require('../utils/errors');
+const logger = require('../utils/logger');
 
-const generateHash = (data) => {
-  const payload = JSON.stringify({
-    userId: data.userId,
-    activityId: data.activityId,
-    hours: data.hours,
-    issuedAt: data.issuedAt,
-  });
-  return crypto.createHash('sha256').update(payload).digest('hex');
+const generateCertificateHash = (data) => {
+  const str = `${data.userId}-${data.activityId}-${data.hours}-${data.issuedAt}`;
+  return crypto.createHash('sha256').update(str).digest('hex');
 };
 
-const issue = async (participationId, issuer) => {
-  const partResult = await db.query(
-    `SELECT p.*, a.title AS activity_title, a.date AS activity_date,
-       u.name AS user_name, u.email AS user_email, u.identifier
-     FROM participations p
-     JOIN activities a ON p.activity_id = a.id
-     JOIN users u ON p.user_id = u.id
-     WHERE p.id = $1 AND p.status = 'VERIFIED'`,
-    [participationId]
-  );
+const issue = async (participationId, issuedById) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  const participation = partResult.rows[0];
-  if (!participation) throw new AppError('Verified participation not found', 404);
+    // 1. Оролцооны мэдээлэл авах
+    const { rows: pRows } = await client.query(
+      `SELECT p.*, u.name AS user_name, u.identifier,
+              a.title AS activity_title
+       FROM app.participations p
+       JOIN app.users u ON u.id = p.user_id
+       JOIN app.activities a ON a.id = p.activity_id
+       WHERE p.id = $1 AND p.status = 'VERIFIED'`,
+      [participationId]
+    );
 
-  const existing = await db.query(
-    'SELECT id FROM certificates WHERE participation_id = $1',
-    [participationId]
-  );
-  if (existing.rows.length > 0) throw new AppError('Certificate already issued', 400);
+    if (!pRows.length) {
+      throw new AppError('Баталгаажсан оролцоо олдсонгүй', 404);
+    }
 
-  const issuedAt = new Date().toISOString();
-  const hash = generateHash({
-    userId: participation.user_id,
-    activityId: participation.activity_id,
-    hours: participation.hours,
-    issuedAt,
-  });
+    const participation = pRows[0];
 
-  const result = await db.query(
-    `INSERT INTO certificates
-       (participation_id, user_id, activity_id, hash, issued_by, issued_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [participationId, participation.user_id, participation.activity_id, hash, issuer.id, issuedAt]
-  );
+    // 2. Давхар батламж шалгах
+    const { rows: existing } = await client.query(
+      'SELECT id FROM app.certificates WHERE participation_id = $1',
+      [participationId]
+    );
 
-  return { ...result.rows[0], participation };
+    if (existing.length) {
+      throw new AppError('Энэ оролцоонд батламж аль хэдийн олгогдсон байна', 400);
+    }
+
+    // 3. SHA-256 хэш үүсгэх
+    const issuedAt = new Date().toISOString();
+    const hash = generateCertificateHash({
+      userId: participation.user_id,
+      activityId: participation.activity_id,
+      hours: participation.hours,
+      issuedAt,
+    });
+
+    logger.info(`Батламжийн хэш үүслээ: ${hash.slice(0, 16)}...`);
+
+    // 4. Блокчейнд бүртгэх
+    let txHash = null;
+    let blockNumber = null;
+
+    try {
+      const bcResult = await blockchainService.registerOnBlockchain(hash, null);
+      txHash = bcResult.txHash;
+      blockNumber = bcResult.blockNumber;
+      logger.info(`Блокчейнд бүртгэгдлээ: tx=${txHash}`);
+    } catch (bcErr) {
+      logger.warn(`Блокчейн бүртгэлт амжилтгүй, DB-д хадгална: ${bcErr.message}`);
+    }
+
+    // 5. DB-д хадгалах
+    const { rows: certRows } = await client.query(
+      `INSERT INTO app.certificates
+         (participation_id, user_id, activity_id, hash, tx_hash, issued_by, issued_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        participationId,
+        participation.user_id,
+        participation.activity_id,
+        hash,
+        txHash,
+        issuedById,
+        issuedAt,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(`Батламж олгогдлоо: id=${certRows[0].id}`);
+
+    return {
+      ...certRows[0],
+      activity_title: participation.activity_title,
+      user_name: participation.user_name,
+      identifier: participation.identifier,
+      blockNumber,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
+// ── Хэрэглэгчийн батламжуудыг авах ─────────────────────────────────────────
 const getByUser = async (userId) => {
-  const result = await db.query(
-    `SELECT c.*, a.title AS activity_title, a.date AS activity_date, p.hours
-     FROM certificates c
-     JOIN activities a ON c.activity_id = a.id
-     JOIN participations p ON c.participation_id = p.id
+  const { rows } = await pool.query(
+    `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
+            p.hours
+     FROM app.certificates c
+     JOIN app.activities a ON a.id = c.activity_id
+     JOIN app.participations p ON p.id = c.participation_id
      WHERE c.user_id = $1
      ORDER BY c.issued_at DESC`,
     [userId]
   );
-  return result.rows;
+  return rows;
 };
 
-const getById = async (id) => {
-  const result = await db.query(
-    `SELECT c.*, a.title AS activity_title, u.name AS user_name
-     FROM certificates c
-     JOIN activities a ON c.activity_id = a.id
-     JOIN users u ON c.user_id = u.id
-     WHERE c.id = $1`,
-    [id]
-  );
-  if (!result.rows[0]) throw new AppError('Certificate not found', 404);
-  return result.rows[0];
-};
-
-const verifyByHash = async (hash) => {
-  const result = await db.query(
+// ── Нэг батламж авах ────────────────────────────────────────────────────────
+const getById = async (id, userId) => {
+  const { rows } = await pool.query(
     `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
-       u.name AS user_name, u.identifier, p.hours
-     FROM certificates c
-     JOIN activities a ON c.activity_id = a.id
-     JOIN users u ON c.user_id = u.id
-     JOIN participations p ON c.participation_id = p.id
+            p.hours, u.name AS user_name, u.identifier
+     FROM app.certificates c
+     JOIN app.activities a ON a.id = c.activity_id
+     JOIN app.participations p ON p.id = c.participation_id
+     JOIN app.users u ON u.id = c.user_id
+     WHERE c.id = $1 AND c.user_id = $2`,
+    [id, userId]
+  );
+
+  if (!rows.length) throw new AppError('Батламж олдсонгүй', 404);
+  return rows[0];
+};
+
+// ── Хэшээр баталгаажуулах ───────────────────────────────────────────────────
+const verifyByHash = async (hash) => {
+  // DB-ээс хайх
+  const { rows } = await pool.query(
+    `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
+            p.hours, u.name AS user_name, u.identifier
+     FROM app.certificates c
+     JOIN app.activities a ON a.id = c.activity_id
+     JOIN app.participations p ON p.id = c.participation_id
+     JOIN app.users u ON u.id = c.user_id
      WHERE c.hash = $1`,
     [hash]
   );
 
-  const certificate = result.rows[0];
-  if (!certificate) throw new AppError('Certificate not found', 404);
+  if (!rows.length) {
+    return { isValid: false, message: 'Батламж олдсонгүй' };
+  }
 
-  return { certificate, verifiedAt: new Date().toISOString() };
+  const cert = rows[0];
+
+  // Блокчейнээс баталгаажуулах
+  let blockchainVerified = false;
+  let blockchainInfo = null;
+
+  try {
+    const bcResult = await blockchainService.verifyOnBlockchain(hash);
+    blockchainVerified = bcResult.isValid;
+    blockchainInfo = bcResult;
+  } catch (err) {
+    logger.warn(`Блокчейн баталгаажуулалт амжилтгүй: ${err.message}`);
+  }
+
+  return {
+    isValid: true,
+    blockchainVerified,
+    blockchainInfo,
+    certificate: cert,
+  };
 };
 
 module.exports = { issue, getByUser, getById, verifyByHash };

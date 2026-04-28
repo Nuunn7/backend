@@ -1,11 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const certificateController = require('../controllers/certificate_controller');
+const {
+  issueCertificate,
+  getMyCertificates,
+  getCertificateById,
+  verifyCertificate,
+  getNetworkInfo,
+} = require('../controllers/certificate_controller');
 const { protect, authorize } = require('../middlewares/auth');
 
-router.get('/verify/:hash', certificateController.verify);
-router.get('/', protect, certificateController.getMyCertificates);
-router.get('/:id', certificateController.getById);
-router.post('/issue/:participationId', protect, authorize('ORGANIZER', 'ADMIN'), certificateController.issue);
+// Public routes
+router.get('/verify/:hash', verifyCertificate);
+
+// Protected routes
+router.use(protect);
+
+router.get('/', getMyCertificates);
+router.get('/network', getNetworkInfo);
+router.get('/:id', getCertificateById);
+router.post(
+  '/issue/:participationId',
+  authorize('ORGANIZER', 'ADMIN'),
+  issueCertificate
+);
 
 module.exports = router;
