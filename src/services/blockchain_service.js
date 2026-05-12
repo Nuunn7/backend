@@ -1,159 +1,85 @@
-// const { ethers } = require('ethers');
-// const crypto = require('crypto');
-// const axios = require('axios');
-// const FormData = require('form-data');
-// const logger = require('../utils/logger');
+const crypto = require('crypto');
+const logger = require('../utils/logger');
 
-// const CONTRACT_ABI = [
-//   'function issueCertificate(bytes32 hash, address recipient) external',
-//   'function verifyCertificate(bytes32 hash) external view returns (bool, address, uint256)',
-//   'event CertificateIssued(bytes32 indexed hash, address indexed recipient, uint256 timestamp)',
-// ];
+// mock transaction hash uusgeh (0x + 64 hex chars)
+const mockTxHash = () =>
+  '0x' + crypto.randomBytes(32).toString('hex');
 
-// const getProvider = () => {
-//   const rpcUrl = process.env.POLYGON_RPC_URL;
-//   if (!rpcUrl) throw new Error('POLYGON_RPC_URL тохируулагдаагүй байна');
-//   return new ethers.JsonRpcProvider(rpcUrl);
-// };
+// mock block number
+const mockBlockNumber = () =>
+  Math.floor(60000000 + Math.random() * 1000000);
 
-// const getSigner = () => {
-//   const privateKey = process.env.PRIVATE_KEY;
-//   if (!privateKey) throw new Error('PRIVATE_KEY тохируулагдаагүй байна');
-//   const provider = getProvider();
-//   return new ethers.Wallet(privateKey, provider);
-// };
+// mock gas
+const mockGasUsed = () =>
+  (50000 + Math.floor(Math.random() * 50000)).toString();
 
-// const getContract = () => {
-//   const contractAddress = process.env.CONTRACT_ADDRESS;
-//   if (!contractAddress) throw new Error('CONTRACT_ADDRESS тохируулагдаагүй байна');
-//   const signer = getSigner();
-//   return new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
-// };
+// SHA-256 hash uusgeh
+const generateHash = (data) => {
+  const str = typeof data === 'string' ? data : JSON.stringify(data);
+  return crypto.createHash('sha256').update(str).digest('hex');
+};
 
-// // 1. SHA-256 хэш үүсгэх 
-// const generateHash = (data) => {
-//   const str = JSON.stringify(data);
-//   return crypto.createHash('sha256').update(str).digest('hex');
-// };
+// blockchain-d burtgeh 
+const registerOnBlockchain = async (hash, recipientAddress) => {
+  // mock latency 200-500ms
+  await new Promise((r) => setTimeout(r, 200 + Math.random() * 300));
 
-// // 2. Блокчейнд бүртгэх
-// const registerOnBlockchain = async (hash, recipientAddress) => {
-//   try {
-//     const contract = getContract();
+  const txHash = mockTxHash();
+  const blockNumber = mockBlockNumber();
 
-//     // hex хэшийг bytes32 болгох
-//     const bytes32Hash = '0x' + hash;
+  logger.info(`[MOCK] Blockchain register: hash=${hash.slice(0, 16)}... tx=${txHash.slice(0, 12)}...`);
 
-//     // recipient хаяг байхгүй бол zero address ашиглана
-//     const recipient = recipientAddress || ethers.ZeroAddress;
+  return {
+    txHash,
+    blockNumber,
+    gasUsed: mockGasUsed(),
+  };
+};
 
-//     logger.info(`Блокчейнд бүртгэж байна: hash=${hash.slice(0, 16)}...`);
+// blockchain-aas batalgaajuulah (mock)
+const verifyOnBlockchain = async (hash) => {
+  await new Promise((r) => setTimeout(r, 100 + Math.random() * 200));
 
-//     const tx = await contract.issueCertificate(bytes32Hash, recipient);
-//     logger.info(`Гүйлгээ илгээгдлээ: txHash=${tx.hash}`);
+  // always returns valid
+  logger.info(`[MOCK] Blockchain verify: hash=${hash.slice(0, 16)}...`);
 
-//     const receipt = await tx.wait();
-//     logger.info(`Гүйлгээ баталгаажлаа: block=${receipt.blockNumber}`);
+  return {
+    isValid: true,
+    recipient: '0x0000000000000000000000000000000000000000',
+    issuedAt: new Date().toISOString(),
+  };
+};
 
-//     return {
-//       txHash: tx.hash,
-//       blockNumber: receipt.blockNumber,
-//       gasUsed: receipt.gasUsed.toString(),
-//     };
-//   } catch (err) {
-//     logger.error(`Блокчейн бүртгэлт амжилтгүй: ${err.message}`);
-//     throw new Error(`Блокчейн бүртгэлт амжилтгүй: ${err.message}`);
-//   }
-// };
+// IPFS-d huulah (mock)
+const uploadToIPFS = async (pdfBuffer, fileName) => {
+  await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
 
-// // 3. Блокчейнээс баталгаажуулах
-// const verifyOnBlockchain = async (hash) => {
-//   try {
-//     const contract = getContract();
-//     const bytes32Hash = '0x' + hash;
+  const cid = 'Qm' + crypto.randomBytes(22).toString('hex').slice(0, 44);
 
-//     const [isValid, recipient, timestamp] = await contract.verifyCertificate(bytes32Hash);
+  logger.info(`[MOCK] IPFS upload: file=${fileName} cid=${cid.slice(0, 16)}...`);
 
-//     return {
-//       isValid,
-//       recipient,
-//       issuedAt: isValid ? new Date(Number(timestamp) * 1000).toISOString() : null,
-//     };
-//   } catch (err) {
-//     logger.error(`Блокчейн баталгаажуулалт амжилтгүй: ${err.message}`);
-//     throw new Error(`Блокчейн баталгаажуулалт амжилтгүй: ${err.message}`);
-//   }
-// };
+  return {
+    cid,
+    url: `https://gateway.pinata.cloud/ipfs/${cid}`,
+  };
+};
 
-// // 4. IPFS-д PDF хуулах (Pinata)
-// const uploadToIPFS = async (pdfBuffer, fileName) => {
-//   try {
-//     const apiKey = process.env.PINATA_API_KEY;
-//     const secretKey = process.env.PINATA_SECRET_KEY;
+// network info (mock)
+const getNetworkInfo = async () => {
+  await new Promise((r) => setTimeout(r, 100));
 
-//     if (!apiKey || !secretKey) {
-//       throw new Error('PINATA_API_KEY эсвэл PINATA_SECRET_KEY тохируулагдаагүй байна');
-//     }
+  return {
+    chainId: '80002',
+    name: 'polygon-amoy',
+    blockNumber: mockBlockNumber(),
+    isMock: true,
+  };
+};
 
-//     const formData = new FormData();
-//     formData.append('file', pdfBuffer, {
-//       filename: fileName || 'certificate.pdf',
-//       contentType: 'application/pdf',
-//     });
-
-//     formData.append(
-//       'pinataMetadata',
-//       JSON.stringify({ name: fileName || 'certificate.pdf' })
-//     );
-
-//     const response = await axios.post(
-//       'https://api.pinata.cloud/pinning/pinFileToIPFS',
-//       formData,
-//       {
-//         maxBodyLength: Infinity,
-//         headers: {
-//           ...formData.getHeaders(),
-//           pinata_api_key: apiKey,
-//           pinata_secret_api_key: secretKey,
-//         },
-//       }
-//     );
-
-//     const cid = response.data.IpfsHash;
-//     logger.info(`IPFS-д хуулагдлаа: CID=${cid}`);
-
-//     return {
-//       cid,
-//       url: `https://gateway.pinata.cloud/ipfs/${cid}`,
-//     };
-//   } catch (err) {
-//     logger.error(`IPFS хуулалт амжилтгүй: ${err.message}`);
-//     throw new Error(`IPFS хуулалт амжилтгүй: ${err.message}`);
-//   }
-// };
-
-// // ── 5. Polygon сүлжээний мэдээлэл авах ──────────────────────────────────────
-// const getNetworkInfo = async () => {
-//   try {
-//     const provider = getProvider();
-//     const network = await provider.getNetwork();
-//     const blockNumber = await provider.getBlockNumber();
-
-//     return {
-//       chainId: network.chainId.toString(),
-//       name: network.name,
-//       blockNumber,
-//     };
-//   } catch (err) {
-//     logger.error(`Сүлжээний мэдээлэл авахад алдаа: ${err.message}`);
-//     throw new Error(`Сүлжээний мэдээлэл авахад алдаа: ${err.message}`);
-//   }
-// };
-
-// module.exports = {
-//   generateHash,
-//   registerOnBlockchain,
-//   verifyOnBlockchain,
-//   uploadToIPFS,
-//   getNetworkInfo,
-// };
+module.exports = {
+  generateHash,
+  registerOnBlockchain,
+  verifyOnBlockchain,
+  uploadToIPFS,
+  getNetworkInfo,
+};

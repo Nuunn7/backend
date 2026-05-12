@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const pool = require('./config/db');
 
 const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
@@ -19,6 +20,12 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
 }));
+
+setInterval(async () => {
+  try {
+    await pool.query('SELECT 1');
+  } catch (e) {}
+}, 4 * 60 * 1000);
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
