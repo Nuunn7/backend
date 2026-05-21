@@ -81,4 +81,13 @@ const getParticipations = async (req, res, next) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, join, verifyParticipation, getParticipations };
+const cancelActivity = async (req, res, next) => {
+  try {
+    await activityService.cancelActivity(req.params.id, req.user);
+    res.json({ success: true, message: 'Үйл ажиллагаа цуцлагдлаа' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, join, verifyParticipation, getParticipations, cancelActivity };

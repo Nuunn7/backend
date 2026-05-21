@@ -54,4 +54,11 @@ router.get(
   activityController.getParticipations
 );
 
+router.patch(
+  '/:id/cancel',
+  protect,
+  authorize('ORGANIZER', 'ADMIN'),
+  activityController.cancelActivity
+);
+
 module.exports = router;

@@ -21,7 +21,7 @@ const issue = async (participationId, issuedById) => {
        FROM app.participations p
        JOIN app.users u ON u.id = p.user_id
        JOIN app.activities a ON a.id = p.activity_id
-       WHERE p.id = $1 AND p.status = 'VERIFIED'`,
+       WHERE p.id = $1 AND p.status = 'APPROVED'`,
       [participationId]
     );
 

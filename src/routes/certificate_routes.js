@@ -7,21 +7,15 @@ const {
   verifyCertificate,
   getNetworkInfo,
 } = require('../controllers/certificate_controller');
-const { protect, authorize } = require('../middlewares/auth');
+const { protect } = require('../middlewares/auth');
 
-// Public routes
 router.get('/verify/:hash', verifyCertificate);
 
-// Protected routes
 router.use(protect);
 
 router.get('/', getMyCertificates);
 router.get('/network', getNetworkInfo);
 router.get('/:id', getCertificateById);
-router.post(
-  '/issue/:participationId',
-  authorize('ORGANIZER', 'ADMIN'),
-  issueCertificate
-);
+router.post('/issue/:participationId', issueCertificate);
 
 module.exports = router;

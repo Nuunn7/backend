@@ -24,12 +24,15 @@ const getAll = async ({ page, limit, status, search }) => {
 
   params.push(parseInt(limit), offset);
   const result = await db.query(
-    `SELECT a.*, u.name AS organizer_name
-     FROM activities a
-     LEFT JOIN users u ON a.organizer_id = u.id
-     ${where}
-     ORDER BY a.created_at DESC
-     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    `SELECT a.*, u.name AS organizer_name,
+      COUNT(p.id) AS participant_count
+    FROM activities a
+    LEFT JOIN users u ON a.organizer_id = u.id
+    LEFT JOIN participations p ON a.id = p.activity_id
+    ${where}
+    GROUP BY a.id, u.name
+    ORDER BY a.created_at DESC
+    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     params
   );
 
@@ -61,9 +64,11 @@ const getById = async (id) => {
 
 const getParticipations = async (activityId) => {
   const result = await db.query(
-    `SELECT p.*, u.name AS user_name, u.email AS user_email
+    `SELECT p.*, u.name AS user_name, u.email AS user_email,
+            c.id AS certificate_id
      FROM participations p
      JOIN users u ON p.user_id = u.id
+     LEFT JOIN certificates c ON c.participation_id = p.id
      WHERE p.activity_id = $1
      ORDER BY p.created_at DESC`,
     [activityId]
@@ -118,7 +123,7 @@ const join = async (activityId, userId) => {
 const verifyParticipation = async (activityId, userId, hours, verifier) => {
   const result = await db.query(
     `UPDATE participations
-     SET status='VERIFIED', hours=$1, verified_by=$2, verified_at=NOW()
+     SET status='APPROVED', hours=$1, verified_by=$2, verified_at=NOW()
      WHERE activity_id=$3 AND user_id=$4
      RETURNING *`,
     [hours, verifier.id, activityId, userId]
@@ -127,4 +132,67 @@ const verifyParticipation = async (activityId, userId, hours, verifier) => {
   return result.rows[0];
 };
 
-module.exports = { getAll, getById, create, update, remove, join, verifyParticipation };
+const autoUpdateStatus = async () => {
+  try {
+    const now = new Date();
+    const oneHourAgo = new Date(now - 60 * 60 * 1000);
+
+    await db.query(
+      `UPDATE activities
+       SET status = 'ONGOING', updated_at = NOW()
+       WHERE status = 'UPCOMING'
+       AND date <= $1`,
+      [now]
+    );
+
+    await db.query(
+      `UPDATE activities
+       SET status = 'COMPLETED', updated_at = NOW()
+       WHERE status = 'ONGOING'
+       AND date <= $1`,
+      [oneHourAgo]
+    );
+  } catch (err) {
+    console.error('Auto status update failed:', err.message);
+  }
+};
+
+const cancelActivity = async (id, user) => {
+  const activity = await getById(id);
+  if (user.role !== 'ADMIN' && activity.organizer_id !== user.id) {
+    throw new AppError('Зөвхөн үүсгэсэн зохион байгуулагч цуцлах боломжтой', 403);
+  }
+  if (activity.status === 'CANCELLED' || activity.status === 'COMPLETED') {
+    throw new AppError('Энэ үйл ажиллагааг цуцлах боломжгүй', 400);
+  }
+
+  const participants = await db.query(
+    `SELECT u.email, u.name FROM participations p
+     JOIN users u ON p.user_id = u.id
+     WHERE p.activity_id = $1`,
+    [id]
+  );
+
+  await db.query(
+    `UPDATE activities SET status='CANCELLED', updated_at=NOW() WHERE id=$1`, [id]
+  );
+
+  // Send email to participants
+  const { sendEmail } = require('../utils/email');
+  for (const p of participants.rows) {
+    await sendEmail({
+      to: p.email,
+      subject: `"${activity.title}" үйл ажиллагаа цуцлагдлаа.`,
+      html: `
+        <p>Сайн байна уу, <strong>${p.name}</strong>!</p>
+        <p><strong>"${activity.title}"</strong> үйл ажиллагаа цуцлагдлаа.</p>
+        <p>Байршил: ${activity.location}</p>
+        <p>Огноо: ${new Date(activity.date).toLocaleString('mn-MN')}</p>
+        <br/>
+        <p>Та VolunteerChain системд бусад үйл ажиллагааг үзнэ үү.</p>
+      `,
+    });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, join, verifyParticipation, getParticipations, autoUpdateStatus, cancelActivity };
