@@ -11,6 +11,7 @@ const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const notFound = require('./middlewares/notFound');
 const logger = require('./utils/logger');
+const externalRouter = require('./routes/external');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/v1', routes);
+app.use('/api/external', externalRouter);
 
 app.use(notFound);
 app.use(errorHandler);

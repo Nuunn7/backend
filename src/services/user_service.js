@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const { AppError } = require('../utils/errors');
 
-// GET /users
 const getAll = async ({ page, limit, role, search }) => {
   const offset = (parseInt(page) - 1) * parseInt(limit);
   const params = [];
@@ -45,7 +44,6 @@ const getAll = async ({ page, limit, role, search }) => {
   };
 };
 
-// GET /users/:id
 const getById = async (id) => {
   const result = await db.query(
     `SELECT id, name, email, role, identifier, created_at, updated_at
@@ -57,7 +55,6 @@ const getById = async (id) => {
   return result.rows[0];
 };
 
-// PUT /users/profile
 const updateProfile = async (userId, { name, email, identifier }) => {
   // check email uniqueness if it is being changed
   if (email) {
@@ -84,7 +81,6 @@ const updateProfile = async (userId, { name, email, identifier }) => {
   return result.rows[0];
 };
 
-// PUT /users/password
 const changePassword = async (userId, currentPassword, newPassword) => {
   const result = await db.query(
     'SELECT password FROM users WHERE id = $1',
@@ -104,7 +100,6 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   return { message: 'Password changed successfully' };
 };
 
-// DELETE /users/:id
 const remove = async (id) => {
   const result = await db.query(
     'DELETE FROM users WHERE id = $1 RETURNING id',
@@ -113,7 +108,6 @@ const remove = async (id) => {
   if (!result.rows[0]) throw new AppError('User not found', 404);
 };
 
-// GET /users/:id/participations
 const getParticipations = async (userId) => {
   const result = await db.query(
     `SELECT p.id, p.activity_id, p.status, p.hours, p.verified_at, p.created_at,
@@ -127,7 +121,6 @@ const getParticipations = async (userId) => {
   return result.rows;
 };
 
-// GET /users/:id/certificates
 const getCertificates = async (userId) => {
   const result = await db.query(
     `SELECT c.id, c.hash, c.tx_hash, c.ipfs_cid, c.issued_at, c.created_at,
@@ -143,7 +136,6 @@ const getCertificates = async (userId) => {
   return result.rows;
 };
 
-// PATCH /users/:id/role
 const changeRole = async (id, role) => {
   const result = await db.query(
     `UPDATE users

@@ -54,13 +54,10 @@ const forgotPassword = async (email) => {
   const result = await db.query('SELECT id FROM users WHERE email = $1', [email]);
   const user = result.rows[0];
 
-  // Always respond with success to avoid email enumeration
   if (!user) return;
 
-  // Delete any existing unused tokens for this user
   await db.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
 
-  // Generate a secure random token
   const resetToken = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 

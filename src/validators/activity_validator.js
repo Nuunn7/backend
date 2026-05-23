@@ -10,7 +10,6 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-// POST /activities
 const validateActivity = [
   body('title')
     .trim()
@@ -38,7 +37,6 @@ const validateActivity = [
   handleValidation,
 ];
 
-// PUT /activities/:id
 const validateActivityUpdate = [
   body('title')
     .optional()
@@ -74,7 +72,6 @@ const validateActivityUpdate = [
   handleValidation,
 ];
 
-// POST /activities/:id/verify/:userId
 const validateVerify = [
   body('hours')
     .notEmpty()

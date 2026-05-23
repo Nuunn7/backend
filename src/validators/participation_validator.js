@@ -10,7 +10,6 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-// GET /participations (query string filters)
 const validateListQuery = [
   query('page')
     .optional()

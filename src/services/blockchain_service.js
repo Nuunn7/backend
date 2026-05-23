@@ -1,27 +1,21 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
-// mock transaction hash uusgeh (0x + 64 hex chars)
 const mockTxHash = () =>
   '0x' + crypto.randomBytes(32).toString('hex');
 
-// mock block number
 const mockBlockNumber = () =>
   Math.floor(60000000 + Math.random() * 1000000);
 
-// mock gas
 const mockGasUsed = () =>
   (50000 + Math.floor(Math.random() * 50000)).toString();
 
-// SHA-256 hash uusgeh
 const generateHash = (data) => {
   const str = typeof data === 'string' ? data : JSON.stringify(data);
   return crypto.createHash('sha256').update(str).digest('hex');
 };
 
-// blockchain-d burtgeh 
 const registerOnBlockchain = async (hash, recipientAddress) => {
-  // mock latency 200-500ms
   await new Promise((r) => setTimeout(r, 200 + Math.random() * 300));
 
   const txHash = mockTxHash();
@@ -36,11 +30,9 @@ const registerOnBlockchain = async (hash, recipientAddress) => {
   };
 };
 
-// blockchain-aas batalgaajuulah (mock)
 const verifyOnBlockchain = async (hash) => {
   await new Promise((r) => setTimeout(r, 100 + Math.random() * 200));
 
-  // always returns valid
   logger.info(`[MOCK] Blockchain verify: hash=${hash.slice(0, 16)}...`);
 
   return {
@@ -50,7 +42,6 @@ const verifyOnBlockchain = async (hash) => {
   };
 };
 
-// IPFS-d huulah (mock)
 const uploadToIPFS = async (pdfBuffer, fileName) => {
   await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
 
@@ -64,7 +55,6 @@ const uploadToIPFS = async (pdfBuffer, fileName) => {
   };
 };
 
-// network info (mock)
 const getNetworkInfo = async () => {
   await new Promise((r) => setTimeout(r, 100));
 

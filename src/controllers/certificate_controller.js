@@ -2,7 +2,6 @@ const certificateService = require('../services/certificate_service');
 const blockchainService = require('../services/blockchain_service');
 const {AppError} = require('../utils/errors');
 
-// POST /api/v1/certificates/issue/:participationId
 const issueCertificate = async (req, res, next) => {
   try {
     const { participationId } = req.params;
@@ -23,7 +22,6 @@ const issueCertificate = async (req, res, next) => {
   }
 };
 
-// GET /api/v1/certificates
 const getMyCertificates = async (req, res, next) => {
   try {
     const certificates = await certificateService.getByUser(req.user.id);
@@ -38,7 +36,6 @@ const getMyCertificates = async (req, res, next) => {
   }
 };
 
-// GET /api/v1/certificates/:id
 const getCertificateById = async (req, res, next) => {
   try {
     const certificate = await certificateService.getById(
@@ -55,7 +52,6 @@ const getCertificateById = async (req, res, next) => {
   }
 };
 
-// GET /api/v1/certificates/verify/:hash 
 const verifyCertificate = async (req, res, next) => {
   try {
     const { hash } = req.params;
@@ -75,7 +71,6 @@ const verifyCertificate = async (req, res, next) => {
   }
 };
 
-// GET /api/v1/certificates/network
 const getNetworkInfo = async (req, res, next) => {
   try {
     const info = await blockchainService.getNetworkInfo();

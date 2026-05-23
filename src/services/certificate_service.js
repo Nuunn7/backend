@@ -135,7 +135,6 @@ const getById = async (id, userId) => {
 
 // ── Хэшээр баталгаажуулах ───────────────────────────────────────────────────
 const verifyByHash = async (hash) => {
-  // DB-ээс хайх
   const { rows } = await pool.query(
     `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
             p.hours, u.name AS user_name, u.identifier
@@ -173,4 +172,19 @@ const verifyByHash = async (hash) => {
   };
 };
 
-module.exports = { issue, getByUser, getById, verifyByHash };
+const getByIdentifier = async (identifier) => {
+  const { rows } = await pool.query(
+    `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
+            p.hours, u.name AS user_name, u.identifier
+     FROM app.certificates c
+     JOIN app.activities a ON a.id = c.activity_id
+     JOIN app.participations p ON p.id = c.participation_id
+     JOIN app.users u ON u.id = c.user_id
+     WHERE u.identifier = $1
+     ORDER BY c.issued_at DESC`,
+    [identifier]
+  );
+  return rows;
+};
+
+module.exports = { issue, getByUser, getById, verifyByHash, getByIdentifier };

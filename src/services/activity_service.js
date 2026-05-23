@@ -177,7 +177,6 @@ const cancelActivity = async (id, user) => {
     `UPDATE activities SET status='CANCELLED', updated_at=NOW() WHERE id=$1`, [id]
   );
 
-  // Send email to participants
   const { sendEmail } = require('../utils/email');
   for (const p of participants.rows) {
     await sendEmail({

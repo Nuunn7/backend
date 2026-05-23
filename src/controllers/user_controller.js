@@ -1,7 +1,6 @@
 const userService = require('../services/user_service');
 const { AppError } = require('../utils/errors');
 
-// GET /users
 const getAll = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, role, search } = req.query;
@@ -12,7 +11,6 @@ const getAll = async (req, res, next) => {
   }
 };
 
-// GET /users/:id
 const getById = async (req, res, next) => {
   try {
     const user = await userService.getById(req.params.id);
@@ -22,7 +20,6 @@ const getById = async (req, res, next) => {
   }
 };
 
-// PUT /users/profile
 const updateProfile = async (req, res, next) => {
   try {
     const { name, email, identifier } = req.body;
@@ -33,7 +30,6 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-// PUT /users/password
 const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -48,7 +44,6 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-// DELETE /users/:id
 const remove = async (req, res, next) => {
   try {
     if (parseInt(req.params.id) === req.user.id) {
@@ -61,10 +56,8 @@ const remove = async (req, res, next) => {
   }
 };
 
-// GET /users/:id/participations
 const getParticipations = async (req, res, next) => {
   try {
-    // volunteers can only see their own participations
     if (
       req.user.role === 'VOLUNTEER' &&
       parseInt(req.params.id) !== req.user.id
@@ -78,7 +71,6 @@ const getParticipations = async (req, res, next) => {
   }
 };
 
-// GET /users/:id/certificates
 const getCertificates = async (req, res, next) => {
   try {
     if (
@@ -94,7 +86,6 @@ const getCertificates = async (req, res, next) => {
   }
 };
 
-// PATCH /users/:id/role
 const changeRole = async (req, res, next) => {
   try {
     const { role } = req.body;

@@ -4,7 +4,7 @@ const logger = require('./utils/logger');
 const { autoUpdateStatus } = require('./services/activity_service');
 const pool = require('./config/db');
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);

@@ -1,7 +1,6 @@
 const db = require('../config/db');
 const { AppError } = require('../utils/errors');
 
-// GET /participations
 const getAll = async ({ page, limit, status, userId, activityId }) => {
   const offset = (parseInt(page) - 1) * parseInt(limit);
   const params = [];
@@ -77,12 +76,9 @@ const getById = async (id) => {
   return result.rows[0];
 };
 
-// PATCH /participations/:id/reject
 const reject = async (id, verifier) => {
-  // get the participation with activity organizer info
   const participation = await getById(id);
 
-  // only the activity organizer or admin can reject
   if (
     verifier.role !== 'ADMIN' &&
     participation.organizer_id !== verifier.id
@@ -90,7 +86,6 @@ const reject = async (id, verifier) => {
     throw new AppError('Not authorized to reject this participation', 403);
   }
 
-  // cannot reject already verified or already rejected records
   if (participation.status !== 'PENDING') {
     throw new AppError(
       `Cannot reject a participation with status '${participation.status}'`,
@@ -110,11 +105,9 @@ const reject = async (id, verifier) => {
   return result.rows[0];
 };
 
-// DELETE /participations/:id
 const remove = async (id, requester) => {
   const participation = await getById(id);
 
-  // only the owner (volunteer) or admin can delete
   if (
     requester.role !== 'ADMIN' &&
     participation.user_id !== requester.id
@@ -122,8 +115,6 @@ const remove = async (id, requester) => {
     throw new AppError('Not authorized to delete this participation', 403);
   }
 
-  // volunteer can only delete their own PENDING records
-  // admin can delete anything
   if (requester.role !== 'ADMIN' && participation.status !== 'PENDING') {
     throw new AppError(
       `Cannot withdraw from a participation with status '${participation.status}'`,
@@ -131,7 +122,6 @@ const remove = async (id, requester) => {
     );
   }
 
-  // also block deletion if a certificate has been issued
   const cert = await db.query(
     'SELECT id FROM certificates WHERE participation_id = $1',
     [id]

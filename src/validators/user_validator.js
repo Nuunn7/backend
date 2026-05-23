@@ -10,7 +10,6 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-// PUT /users/profile
 const validateUpdateProfile = [
   body('name')
     .optional()
@@ -31,7 +30,6 @@ const validateUpdateProfile = [
   handleValidation,
 ];
 
-// PUT /users/password
 const validateChangePassword = [
   body('currentPassword')
     .notEmpty()
@@ -48,7 +46,6 @@ const validateChangePassword = [
   handleValidation,
 ];
 
-// PATCH /users/:id/role
 const validateChangeRole = [
   body('role')
     .isIn(['VOLUNTEER', 'ORGANIZER', 'ADMIN'])

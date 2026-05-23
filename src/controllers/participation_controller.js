@@ -1,7 +1,6 @@
 const participationService = require('../services/participation_service');
 const { AppError } = require('../utils/errors');
 
-// GET /participations
 const getAll = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, status, userId, activityId } = req.query;
@@ -18,12 +17,10 @@ const getAll = async (req, res, next) => {
   }
 };
 
-// GET /participations/:id
 const getById = async (req, res, next) => {
   try {
     const participation = await participationService.getById(req.params.id);
 
-    // volunteers can only view their own participations
     if (
       req.user.role === 'VOLUNTEER' &&
       participation.user_id !== req.user.id
@@ -31,7 +28,6 @@ const getById = async (req, res, next) => {
       throw new AppError('Not authorized to view this participation', 403);
     }
 
-    // organizers can only view participations for activities they organize
     if (
       req.user.role === 'ORGANIZER' &&
       participation.organizer_id !== req.user.id
@@ -45,7 +41,6 @@ const getById = async (req, res, next) => {
   }
 };
 
-// PATCH /participations/:id/reject
 const reject = async (req, res, next) => {
   try {
     const result = await participationService.reject(req.params.id, req.user);
@@ -55,7 +50,6 @@ const reject = async (req, res, next) => {
   }
 };
 
-// DELETE /participations/:id
 const remove = async (req, res, next) => {
   try {
     await participationService.remove(req.params.id, req.user);
