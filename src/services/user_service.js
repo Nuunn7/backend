@@ -56,7 +56,6 @@ const getById = async (id) => {
 };
 
 const updateProfile = async (userId, { name, email, identifier }) => {
-  // check email uniqueness if it is being changed
   if (email) {
     const existing = await db.query(
       'SELECT id FROM users WHERE email = $1 AND id <> $2',

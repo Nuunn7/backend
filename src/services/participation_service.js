@@ -56,7 +56,6 @@ const getAll = async ({ page, limit, status, userId, activityId }) => {
   };
 };
 
-// GET /participations/:id
 const getById = async (id) => {
   const result = await db.query(
     `SELECT p.id, p.activity_id, p.user_id, p.status, p.hours,

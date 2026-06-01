@@ -14,7 +14,6 @@ const issue = async (participationId, issuedById) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Оролцооны мэдээлэл авах
     const { rows: pRows } = await client.query(
       `SELECT p.*, u.name AS user_name, u.identifier,
               a.title AS activity_title
@@ -31,7 +30,6 @@ const issue = async (participationId, issuedById) => {
 
     const participation = pRows[0];
 
-    // 2. Давхар батламж шалгах
     const { rows: existing } = await client.query(
       'SELECT id FROM app.certificates WHERE participation_id = $1',
       [participationId]
@@ -41,7 +39,6 @@ const issue = async (participationId, issuedById) => {
       throw new AppError('Энэ оролцоонд батламж аль хэдийн олгогдсон байна', 400);
     }
 
-    // 3. SHA-256 хэш үүсгэх
     const issuedAt = new Date().toISOString();
     const hash = generateCertificateHash({
       userId: participation.user_id,
@@ -52,7 +49,6 @@ const issue = async (participationId, issuedById) => {
 
     logger.info(`Батламжийн хэш үүслээ: ${hash.slice(0, 16)}...`);
 
-    // 4. Блокчейнд бүртгэх
     let txHash = null;
     let blockNumber = null;
 
@@ -65,7 +61,6 @@ const issue = async (participationId, issuedById) => {
       logger.warn(`Блокчейн бүртгэлт амжилтгүй, DB-д хадгална: ${bcErr.message}`);
     }
 
-    // 5. DB-д хадгалах
     const { rows: certRows } = await client.query(
       `INSERT INTO app.certificates
          (participation_id, user_id, activity_id, hash, tx_hash, issued_by, issued_at)
@@ -101,7 +96,6 @@ const issue = async (participationId, issuedById) => {
   }
 };
 
-// ── Хэрэглэгчийн батламжуудыг авах ─────────────────────────────────────────
 const getByUser = async (userId) => {
   const { rows } = await pool.query(
     `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
@@ -116,7 +110,6 @@ const getByUser = async (userId) => {
   return rows;
 };
 
-// ── Нэг батламж авах ────────────────────────────────────────────────────────
 const getById = async (id, userId) => {
   const { rows } = await pool.query(
     `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
@@ -133,7 +126,6 @@ const getById = async (id, userId) => {
   return rows[0];
 };
 
-// ── Хэшээр баталгаажуулах ───────────────────────────────────────────────────
 const verifyByHash = async (hash) => {
   const { rows } = await pool.query(
     `SELECT c.*, a.title AS activity_title, a.date AS activity_date,
@@ -152,7 +144,6 @@ const verifyByHash = async (hash) => {
 
   const cert = rows[0];
 
-  // Блокчейнээс баталгаажуулах
   let blockchainVerified = false;
   let blockchainInfo = null;
 
